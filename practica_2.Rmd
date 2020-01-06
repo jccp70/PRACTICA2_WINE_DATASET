@@ -1,0 +1,1474 @@
+---
+title: "PRÁCTICA 2: Limpieza y validación de los datos"
+author: "Carles Colomina"
+date: "23 de diciembre de 2019"
+output:
+  pdf_document:
+    highlight: default
+    number_sections: yes
+    toc: yes
+  html_document:
+    highlight: default
+    number_sections: yes
+    theme: cosmo
+    toc: yes
+    toc_depth: 2
+  word_document: default
+  number_sections: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Selección del dataset de trabajo.
+
+El dataset de trabajo seleccionado es el "Red & White Wine Dataset", ya que es interesante para testear modelos de regresión y clasificación. Otro motivo para seleccionar este dataset, es que en otras asignaturas del máster ya he trabajado con otros datasets de Kaggle, por ejemplo con el "Titanic", por contra nunca he trabajado con el "Wine Quality Data Set", por lo que es una buena oportunidad para aprender y reflexionar sobre los resultados que se obtengan.
+
+Los datos para realizar la práctica se han descargado del repositorio [Kaggle: Red White Wine Dataset](https://www.kaggle.com/numberswithkartik/red-white-wine-dataset). En la práctica se ha propuesto trabajar a modo de ejemplo con el "Red Dataset", en mi caso prefiero trabajar con ambos datasets, el de vino blanco y el de vino tinto, ya que esto hace más interesante la práctica ya que proporciona mayores posibilidades de análisis.
+
+Procedemos a seleccionar el directorio de trabajo y a cargar los datos:
+
+```{r}
+
+setwd("C:/Users/Carlos/Desktop/Ciencia de Datos/Tipología y ciclo de vida de los datos/PRACTICA 2")
+
+data <- read.csv("wine_dataset.csv", header = TRUE, sep = ",")
+
+#Separamos los datasets en tintos y blancos por si más adelante queremos
+#realizar algún tipo de análisis específico para cada tipo de vino.
+
+data_red <- data[which(data$style == "red"), ]
+data_white <- data[data$style == "white", ]
+
+```
+
+# Descripción del dataset.
+
+## Autores y descripción del dataset.
+
+Realizamos primero una descripción del dataset, y de las variables que lo componen.
+
+La descripción del dataset es importante, ya que nos permite entender los datos de que disponenmos, sus características, su relevancia en el dataset y el motivo por el que los autores los han seleccionado; se nos indican también los métodos con los que han sido recopilados (esto nos permite entender por ejemplo las posibles causas de valores nulos o vacíos, etc.) y los objetivos que se plantean los autores de los datos en el momento de recopilarlos.
+
+Una buena comprensión inicial del dataset es fundamental para extraer información relevante del mismo.
+
+El dataset "Red & White Wine Dataset", presenta dos datasets, uno de vino blanco y otro de vino tinto (identificados como 0blanco y 1: tinto ), con una serie de datos químico físicos de los mismos. Todas las variables numéricas que incluye son bastante relevantes según los autores en la calidad final de un vino. Finalmente el dataset dispone de una variable cualitativa categórica que nos indica como es clasificado cada vino por expertos entre 0-10 (muy mala calidad - muy buena calidad).
+
+**Citación de los autores.**
+
+P. Cortez, A. Cerdeira, F. Almeida, T. Matos and J. Reis. 
+Modeling wine preferences by data mining from physicochemical properties.
+
+* [Elsevier] (http://dx.doi.org/10.1016/j.dss.2009.05.016)
+
+
+Las **variables** del dataset son:
+
+   1 - fixed acidity: los ácidos fijados son aquellos que no son volátiles y permanecen en el vino, se miden en mg/l. 
+   
+   2 - volatile acidity: los ácidos volátiles tienen mayor volatilidad e influyen en el aroma del vino, se miden en mg/l.
+   
+   3 - citric acid: concentración de ácido cítrico en mr/l.
+   
+   4 - residual sugar: concentración de azúcares en mg/l.
+   
+   5 - chlorides: concentración de cloruros en mg/l.
+   
+   6 - free sulfur dioxide: concentración libre de dióxido de azufre en mg/l.
+   
+   7 - total sulfur dioxide: concentración total de dióxido de azufre en mg/l.
+   
+   8 - density: densidad del vino en gr/cm3.
+   
+   9 - pH: pH del vino.
+   
+   10 - sulphates: concentración de sulfatos del vino en mg/l.
+   
+   11 - alcohol: graduación alcohólica del vino en grados.
+   
+   12 - quality (score between 0 and 10): escala cualitativa de calidad determinada por expertos, 0 indica calidad pésima, 10 calidad excelente.
+   
+   13 - style: indica el tipo de vino, 1- red, 0- white.
+   
+## Importancia del dataset y preguntas que se pretende responder en esta práctica.
+
+La importancia o utilidad del dataset deriva, en que nos aporta un panel datos que nos permitirán evaluar si es posible partiendo de datos físico químicos previos, poder determinar la calidad final de un vino de forma similar a como lo haría un panel de expertos. Además, de los métodos de análisis evaluados, nos permitirá determinar cuales son los mejores para llevar a cabo estas predicciones.Una vez se disponga de métodos de análisis con adecuadas medidas de rendimiento,estos análisis podrán ser empleados por los fabricantes de vinos para poder mejorar la calidad de los mismos, enfocándose en los conjuntos de variables físico químicas que sean más relevantes en la cildad final del vino. 
+
+Las preguntas básicas de partida que nos plantearemos serán las siguientes:
+
+* ¿Tiene sentido trabajar con todos los vinos en conjunto o es mejor trabajar con ellos de forma separada (blancos respecto a tintos)?,¿son significativamente distintos los vinos blancos de los tintos?
+* ¿Existe algún parámetro químico físico que sea especialmente relevante para diferenciar vinos de buena calidad?
+* ¿Es posible predecir, por ejemplo mediante regresión lineal, u otros tipos de análisis, en base a los datos químico físicos disponibles de un vino, determinar la calidad resultante del mismo antes de que lo valore un panel de expertos?, ¿Cual sería el mejor de estos métodos de análisis?
+
+## Análisis descriptivo inicial.
+
+Realizaremos primero un análisis descriptivo previo antes de realizar las tareas propias de limpieza. Este análisis previo es interesante para ver como cambia el dataset una vez realizadas las tareas de limpieza.
+
+```{r}
+
+str(data)
+summary(data)
+
+#Generamos boxplots de las variables separando los blancos de los tintos.
+par(mfrow=c(1,4))
+for (i in 1:(ncol(data)-1)) {
+    boxplot(data[,i] ~ style, data=data, main=c(names(data[i])))
+}
+
+#Realizamos también histogramas de las diferentes variables.
+par(mfrow=c(1,2))
+for (i in 1:(ncol(data)-1)) {
+        hist(data_red[,i], breaks=25, main=c(names(data[i]),"Red"))
+        hist(data_red[,i], breaks=25, main=c(names(data[i]), "White"))
+}
+
+```
+
+Aspectos destacables del análisis preliminar previa limpieza:
+
+* Todas las variables son numéricas de tipo float, excepto el valor de calidad que es un integer, y la variable style que es un factor.
+* Como se puede ver en el summary, la escala de las variables oscila entre variables con valores <1 y variables con valores de >200, a causa de esta diferencia de escala será interesante plantearse llevar a cabo algún tipo de normalización.
+* Los boxplots muestran diversas variables con outliers, así como variables que parecen significativamente diferentes entre vinos blancos y tintos.
+* El número de vinos blancos analizados es más del triple que el de vinos tintos.
+* En algunas variables, una vez vistos los histogramas, podemos sospechar falta de normalidad.
+
+# Limpieza del dataset.
+
+## Integración de los datos.
+
+En este dataset, la integración ya ha sido llevada a cabo. El dataset "Wine Quality Dataset", se encuentra disponible en el repositorio [UCI: Wine Quality Dataset](https://archive.ics.uci.edu/ml/datasets/wine+quality), y consta de dos datasets separados, el "winequality-white.csv" y el "winequality-red.csv", Kaggle importó estos dataset y llevó a cabo la integración vertical de ambos, añadiendo una variable categórica "style" que permite diferenciar los vinos blancos de los tintos. Por tanto para este dataset no se llevarán a cabo tareas de integración de datos.
+
+## Selección de datos de interés.
+
+Una vez realizado el análisis descriptivo previo, podemos ver que todas las variables del dataset son importantes, en mayor o menor medida, para los análisis que realizaremos más adelante, por lo que no podemos prescindir de ninguna y todas las variables serán seleccionadas para el dataset de trabajo.
+
+## Reducción.
+
+En este dataset NO se llevará a cabo una reducción de la cantidad de registros disponibles, ya que tampoco hay una cantidad excesiva de los mismos (unos 6500 registros) que genere tiempos de computación, ni dificultades excesivas en su procesado. Eliminar registros implicaría para este caso perder información valiosa, por lo que no se llevará a cabo esta eliminación.
+
+En cuanto a una posible reducción previa de dimensionalidad, realizaremos un análisis PCA previo, con las variables físico químicas exclusivamente:
+
+```{r}
+
+data.pca <- prcomp(data[,c(1:11)], center = TRUE, scale = TRUE) 
+summary(data.pca)
+
+```
+
+Como podemos ver, necesitamos entre 6 y 7 componentes principales para acumular un 90% de variancia, por lo que no es viable reducir el número de dimensiones inicial, a un número de dimensiones más manejable (tres o cuatro).
+
+Más adelante, cuando empleemos modelos de regresión, podremos ver si alguna de las variables físico químicas tiene un peso específico poco relevante en el modelo.
+
+## Conversión.
+
+### Normalización.
+
+Tal como ya se ha comentado, hay variables que difieren entre si al menos tres o cuatro órdenes de magnitud (por ejemplo los cloruros con una media entorno a 0.05 mg/l y el total de SO2 con una media de 115 mg/l), por lo que considero mecesario estandarizar los datos para eliminar el sesgo que puede introducir esta disparidad de escalas. La estandarización empleada sería la z-score.
+
+```{r}
+
+data[,c(1:11)]<- scale(data[,c(1:11)])
+#summary(data)
+
+#Estandarizamos también data_red y data_white, good y bad ya están estandarizados.
+data_red[,c(1:11)]<- scale(data_red[,c(1:11)])
+data_white[,c(1:11)]<- scale(data_white[,c(1:11)])
+
+```
+
+Podemos ver que hay variables adquieren valores 5, 6, 7 y hasta 15 desviaciones estándar respecto de su media, sobretodo en los valores mayores. En los valores menores no se pasa de las tres desviaciones estándar, lo cual es mucho más razonable. 
+
+### Transformación de Box-Cox.
+
+Por ahora no decidiremos si empleamos este tipo de transformación, más adelante en el apartado de análisis estadístico inferencial decidiremos si realizamos esta transformación para alguna de las variables del dataset, o bien empleamos tests no paramétricos para realizar comparaciones.
+
+### Discretización.
+
+En este dataset puede ser interesante discretizar la variable "quality" en una variable dicotómica, ya que esto nos permitiría realizar una regresión logística, o bien emplear otro tipo de clasificadores en combinación con curvas ROC como medidas de rendimiento.
+
+LA discretización que llevaremos a cabo será clasificar los vinos con un valor de calidad mayor o igual a 7 como vinos de buena calidad y los de valor menor de 7 como vinos normales o malos.
+
+```{r}
+
+data$class[data$quality >= 7]<- "good"
+data$class[data$quality < 7]<- "bad"
+data$class <- as.factor(data$class)
+
+str(data$class)
+
+#Separamos también los datasets, por si más adelante es necesario utilizarlos.
+data_good <- data[which(data$class == "good"), ]
+data_bad <- data[data$class == "bad", ]
+
+#Exportamos el dataset de trabajo a CSV.
+write.csv(data, file="wine_dataset_PRAC2.csv", row.names = FALSE)
+
+```
+
+## Ceros y datos vacíos.
+
+En este dataset, dado que contiene variables físico químicas numéricas, los valores cero son posibles y tienen sentido físico, por ejemplo para el ácido cítrico, existen varios valores cero,  [ácido cítrico] = 0 mgr/l, lo cual significa que no contiene este compuesto, o bien que su valor está por debajo del límite de detección del método analítico. Por lo tanto NO consideraremos los valores cero en las variables numéricas (antes de normalizar) como valores anómalos y los dejaremos tal como están.
+
+Podrían ser anómalos algunos valores cero como por ejemplo en el caso de la densidad, pero como podemos comprobar en el summary(data), en todas las variables físico químicas numéricas el valor mínimo es mayor que cero, incluida la densidad, excepto para el caso del ácido cítrico, para el cual ya hemos comentado que estos valores no pueden ser considerados anormales, y por tanto hay que mantenerlos.
+
+Los datos vacíos o NA, son otro asunto que hay que comprobar previamente, para ello:
+
+```{r}
+
+# Estadísticas de valores NA
+colSums(is.na(data))
+
+# Atributos con valor ausente, datos vacíos.
+colSums(data=="")
+
+```
+
+Como podemos comprobar no existen en este dataset NA o valores vacíos.
+
+En el caso de que se hubiesen detectado valores cero anormales (por ejemplo en la densidad), o valores NA o vacíos, para este dataset lo más aconsejable sería sustituir los mismos por valores estimados, por ejemplo empleando métodos de similitud como el kNN-imputation (donse se buscan los registros más similares por distancia al registro que contiene el NA y se le asigna la media de este clúster para el atributo), que considero son mejores que sustituir el valor NA por la media del atributo en el dataset. Estos métodos siempre introducen un cierto sesgo, el que menos quizás el KNN-imputation, pero es preferible introducir este sesgo, a perder la información de los registros que contienen estos NA. En el caso de que el número de registros que contienen NA fuese muy reducido, podrísmod plsntearnos eliminarlos.
+
+## Tratamiento de valores extremos.
+
+Los outliers son valores que se encuentran muy alejados de la distribución normal de una variable, normalmente se emplean 3 desviaciones estándar como referencia para clasificar un valor extremo. 
+Como hemos visto al normalizar las variables del dataset, en todas ellas aparecen outliers, con valores que incluso llegan a 15 desviaciones estándar en algunas de ellas, la mayoría de estos outliers como hemos visto se encuentran en el rango superior de las variables, no así en los inferiores.
+
+A priori, los outliers observados son legítimos y por tanto considero hay que mantenerlos en el análisis. Una posible explicación sería que la producción de vinos es un proceso biológico con un importante componente artesanal y fuertemente dependiente de la climatología y de geografía de los cultivos, por lo que es fácil que en los parámetros analizados, aparezcan fuertes desviaciones de la normalidad en función del año y la climatología.
+
+En particular si analizamos el dataset conjunto (blancos y tintos) y los datasets de vino tinto y blanco por separado, podemos observar que en el dataset mixto (blancos y tintos), el número de outliers se dispara, lo cual ya nos indica que la diferencia existente entre ambos tipos de vinos es posiblemente significativa.
+
+Si analizamos en detalle el número de outliers en cada variables, tenemos los siguientes valores:
+
+|Variable|outliers dataset blancos+tintos|outliers dataset blancos| outliers dataset tintos|
+|:----------------------|:---------------:|:---------------:|:---------------:|
+|fixed_acidity|`r length(boxplot.stats(data[,1])$out)`|`r length(boxplot.stats(data_white[,1])$out)`|`r length(boxplot.stats(data_red[,1])$out)`|
+|volatile_acidity|`r length(boxplot.stats(data[,2])$out)`|`r length(boxplot.stats(data_white[,2])$out)`|`r length(boxplot.stats(data_red[,2])$out)`|
+|citric_acid|`r length(boxplot.stats(data[,3])$out)`|`r length(boxplot.stats(data_white[,3])$out)`|`r length(boxplot.stats(data_red[,3])$out)`|
+|residual_sugar|`r length(boxplot.stats(data[,4])$out)`|`r length(boxplot.stats(data_white[,4])$out)`|`r length(boxplot.stats(data_red[,4])$out)`|
+|chlorides|`r length(boxplot.stats(data[,5])$out)`|`r length(boxplot.stats(data_white[,5])$out)`|`r length(boxplot.stats(data_red[,5])$out)`|
+|free_SO2|`r length(boxplot.stats(data[,6])$out)`|`r length(boxplot.stats(data_white[,6])$out)`|`r length(boxplot.stats(data_red[,6])$out)`|
+|total_SO2|`r length(boxplot.stats(data[,7])$out)`|`r length(boxplot.stats(data_white[,7])$out)`|`r length(boxplot.stats(data_red[,7])$out)`|
+|density|`r length(boxplot.stats(data[,8])$out)`|`r length(boxplot.stats(data_white[,8])$out)`|`r length(boxplot.stats(data_red[,8])$out)`|
+|pH|`r length(boxplot.stats(data[,9])$out)`|`r length(boxplot.stats(data_white[,9])$out)`|`r length(boxplot.stats(data_red[,9])$out)`|
+|sulphates|`r length(boxplot.stats(data[,10])$out)`|`r length(boxplot.stats(data_white[,10])$out)`|`r length(boxplot.stats(data_red[,10])$out)`|
+|alcohol|`r length(boxplot.stats(data[,11])$out)`|`r length(boxplot.stats(data_white[,11])$out)`|`r length(boxplot.stats(data_red[,11])$out)`|
+
+La presencia de outliers tan extremos podría generar problemas en los análisis estadísticos. Una posible opción para corregir parcialmente la distorsión que introducen estos outliers, dado que hemos normalizado los datos de los datasets mediante una estandarización z-score, es sustituir todo valor mayor de 3 o menor de -3 (valores con más de 3 veces la desviación estándar de la media de la variable), por 3 o -3 respectivamente. Mediante esta transformación, los valores modificados continúan siendo outliers (ya que su sd es 3, -3), pero se consiguen eliminar valores extremos de sd, por ejemplo 9, 15, etc.
+
+El código de R para realizar esta transformación es el siguiente:
+
+```{r, eval=FALSE}
+
+for (i in 1:11) {
+  for (j in 1: (nrow(data))) {
+    if (data[j, i] > 3){
+      data[j, i] <- 3
+    }
+    if (data[j, i] < -3){
+      data[j, i] <- -3
+    }
+  }
+}
+
+for (i in 1:11) {
+  for (j in 1: (nrow(data_red))) {
+    if (data_red[j, i] > 3){
+      data_red[j, i] <- 3
+    }
+    if (data_red[j, i] < -3){
+      data_red[j, i] <- -3
+    }
+  }
+}
+
+for (i in 1:11) {
+  for (j in 1: (nrow(data_white))) {
+    if (data_white[j, i] > 3){
+      data_white[j, i] <- 3
+    }
+    if (data_white[j, i] < -3){
+      data_white[j, i] <- -3
+    }
+  }
+}
+
+```
+
+A pesar de ello tras realizar la transformación indicada, se observa que los tests estadísticos del apartado 4.3 y 4.4 continúan dando los mismos resultados, no varían en absoluto, y que de los análisis realizados tampoco ninguno mejora sus medidas de rendimiento.
+
+Por tanto vistos los resultados de esta transformación de los outliers, **NO** la llevaremos a cabo, ya que no introduce ninguna mejora, por lo que dejaremos los outliers tal como están sin eliminar ni modificar ninguno.
+
+#Análisis de los datos.
+
+##Análisis descriptivo.
+
+Ya ha sido llevado a cabo en etapas anteriores, dado que el dataset inicial no se ha modificado en exceso, solamente se añadirá al análisis descriptivo inicial (apartado 2.3), los boxplots para comparar las variables químico físicas frente frente a la nueva categoría que hemos añadido "good", "bad".
+
+```{r}
+
+data_red1 <- data[which(data$style == "red"), ]
+data_white1 <- data[data$style == "white", ]
+
+#Generamos boxplots de las variables separando en vinos de buena calidad y mala calidad, para tintos y blancos.
+par(mfrow=c(1,4))
+for (i in 1:(ncol(data_red1)-2)) {
+    boxplot(data_red1[,i] ~ data_red1$class,   
+    main=c(names(data_red1[i]), "Red"))
+}
+
+par(mfrow=c(1,4))
+for (i in 1:(ncol(data_white1)-2)) {
+    boxplot(data_white1[,i] ~ data_white1$class, 
+    main=c(names(data_white1[i]), "White"))
+}
+
+```
+
+A primera vista (antes de realizar los tests estadísticos), las variables que parece que afectan más a la calidad excelente de un vino (class >= 7) en los boxplots (mayor diferencia entre "good" y "bad") son:
+
+* Para los tintos alcohol, sulphates, total_SO2, volatile_acidity, density y citric_acid. 
+* Para los blancos alcohol y density. 
+
+## Selección de los grupos de datos que se quieren comparar.
+
+Básicamente compararemos si existen diferencias significativas entre las variables del dataset dentro de los siguientes grupos:
+
+* Vinos blancos y tintos.
+* Vinos de buena calidad y de mala calidad.
+
+Una vez vistas las diferencias significativas entre blancos y tintos si es que las hay, analizaremos si es posible realizar predicciones de calidad de los vinos mediante regresiones. Estas regresiones nos permitirán además ver si alguno de los parámetros físico químicos tiene un mayor impacto en la calidad final del vino.
+
+En concreto realizaremos:
+
+* Regresión lineal.
+
+Finalmente crearemos modelos clasificadores para intentar predecir la calidad de un vino en base a sus propiedades físico químicas, mediante:
+
+* Regresión logística.
+* Random Forest.
+
+## Comprobación de normalidad y homocedasticidad de las variables.
+
+### fixed_acidity.
+
+```{r}
+
+#Test de normalidad red-white.
+shapiro.test(data_red$fixed_acidity)
+shapiro.test(data_white$fixed_acidity)
+
+```
+
+Los datos **NO** se distribuyen normalmente.
+
+```{r}
+
+#Test de homocedasticidad red-white.
+fligner.test(fixed_acidity ~ style, data = data)
+
+```
+
+Los dos grupos **NO** son homocedásticos.
+
+```{r}
+
+#Test de normalidad good-bad.
+shapiro.test(data_good$fixed_acidity)
+#El shapiro test solo admite máximo 5000 registros por lo que hay que hacer un random sample de la muestra "bad".
+shapiro.test(sample(data_bad$fixed_acidity, 5000, replace=FALSE))
+
+```
+
+Los datos **NO** se distribuyen normalmente.
+
+```{r}
+
+#Test de homocedasticidad good-bad.
+fligner.test(fixed_acidity ~ class, data= data)
+
+```
+
+Los dos grupos **SI** son homocedásticos.
+
+### volatile_acidity.
+
+```{r}
+
+#Test de normalidad red-white.
+shapiro.test(data_red$volatile_acidity)
+shapiro.test(data_white$volatile_acidity)
+
+```
+
+Los datos **NO** se distribuyen normalmente.
+
+```{r}
+
+#Test de homocedasticidad red-white.
+fligner.test(volatile_acidity ~ style, data = data)
+
+```
+
+Los dos grupos **NO** son homocedásticos.
+
+```{r}
+
+#Test de normalidad good-bad.
+shapiro.test(data_good$volatile_acidity)
+shapiro.test(sample(data_bad$volatile_acidity, 5000, replace=FALSE))
+
+```
+
+Los datos **NO** se distribuyen normalmente.
+
+```{r}
+
+#Test de homocedasticidad good-bad.
+fligner.test(volatile_acidity ~ class, data= data)
+
+```
+
+Los dos grupos **NO** son homocedásticos.
+
+
+### citric_acid.
+
+```{r}
+
+#Test de normalidad red-white.
+shapiro.test(data_red$citric_acid)
+shapiro.test(data_white$citric_acid)
+
+```
+
+Los datos **NO** se distribuyen normalmente.
+
+```{r}
+
+#Test de homocedasticidad red-white.
+fligner.test(citric_acid ~ style, data = data)
+
+```
+
+Los dos grupos **NO** son homocedásticos.
+
+```{r}
+
+#Test de normalidad good-bad.
+shapiro.test(data_good$citric_acid)
+shapiro.test(sample(data_bad$citric_acid, 5000, replace=FALSE))
+
+```
+
+Los datos **NO** se distribuyen normalmente.
+
+```{r}
+
+#Test de homocedasticidad good-bad.
+fligner.test(citric_acid ~ class, data= data)
+
+```
+
+Los dos grupos **NO** son homocedásticos.
+
+### residual_sugar.
+
+```{r}
+
+#Test de normalidad red-white.
+shapiro.test(data_red$residual_sugar)
+shapiro.test(data_white$residual_sugar)
+
+```
+
+Los datos **NO** se distribuyen normalmente.
+
+```{r}
+
+#Test de homocedasticidad red-white.
+fligner.test(residual_sugar ~ style, data = data)
+
+```
+
+Los dos grupos **NO** son homocedásticos.
+
+```{r}
+
+#Test de normalidad good-bad.
+shapiro.test(data_good$residual_sugar)
+shapiro.test(sample(data_bad$residual_sugar, 5000, replace=FALSE))
+
+```
+
+Los datos **NO** se distribuyen normalmente.
+
+```{r}
+
+#Test de homocedasticidad good-bad.
+fligner.test(residual_sugar ~ class, data= data)
+
+```
+
+Los dos grupos **NO** son homocedásticos.
+
+### chlorides.
+
+```{r}
+
+#Test de normalidad red-white.
+shapiro.test(data_red$chlorides)
+shapiro.test(data_white$chlorides)
+
+```
+
+Los datos **NO** se distribuyen normalmente.
+
+```{r}
+
+#Test de homocedasticidad red-white.
+fligner.test(chlorides ~ style, data = data)
+
+```
+
+Los dos grupos **NO** son homocedásticos.
+
+```{r}
+
+#Test de normalidad good-bad.
+shapiro.test(data_good$chlorides)
+shapiro.test(sample(data_bad$chlorides, 5000, replace=FALSE))
+
+```
+
+Los datos **NO** se distribuyen normalmente.
+
+```{r}
+
+#Test de homocedasticidad good-bad.
+fligner.test(chlorides ~ class, data= data)
+
+```
+
+Los dos grupos **NO** son homocedásticos.
+
+### free_sulfur_dioxide.
+
+```{r}
+
+#Test de normalidad red-white.
+shapiro.test(data_red$free_sulfur_dioxide)
+shapiro.test(data_white$free_sulfur_dioxide)
+
+```
+
+Los datos **NO** se distribuyen normalmente.
+
+```{r}
+
+#Test de homocedasticidad red-white.
+fligner.test(free_sulfur_dioxide ~ style, data = data)
+
+```
+
+Los dos grupos **NO** son homocedásticos.
+
+```{r}
+
+#Test de normalidad good-bad.
+shapiro.test(data_good$free_sulfur_dioxide)
+shapiro.test(sample(data_bad$free_sulfur_dioxide, 5000, replace=FALSE))
+
+```
+
+Los datos **NO** se distribuyen normalmente.
+
+```{r}
+
+#Test de homocedasticidad good-bad.
+fligner.test(free_sulfur_dioxide ~ class, data= data)
+
+```
+
+Los dos grupos **NO** son homocedásticos.
+
+### total_sulfur_dioxide.
+
+```{r}
+
+#Test de normalidad red-white.
+shapiro.test(data_red$total_sulfur_dioxide)
+shapiro.test(data_white$total_sulfur_dioxide)
+
+```
+
+Los datos **NO** se distribuyen normalmente.
+
+```{r}
+
+#Test de homocedasticidad red-white.
+fligner.test(total_sulfur_dioxide ~ style, data = data)
+
+```
+
+Los dos grupos **NO** son homocedásticos.
+
+```{r}
+
+#Test de normalidad good-bad.
+shapiro.test(data_good$total_sulfur_dioxide)
+shapiro.test(sample(data_bad$total_sulfur_dioxide, 5000, replace=FALSE))
+
+```
+
+Los datos **NO** se distribuyen normalmente.
+
+```{r}
+
+#Test de homocedasticidad good-bad.
+fligner.test(total_sulfur_dioxide ~ class, data= data)
+
+```
+
+Los dos grupos **NO** son homocedásticos.
+
+### density.
+
+```{r}
+
+#Test de normalidad red-white.
+shapiro.test(data_red$density)
+shapiro.test(data_white$density)
+
+```
+
+Los datos **NO** se distribuyen normalmente.
+
+```{r}
+
+#Test de homocedasticidad red-white.
+fligner.test(density ~ style, data = data)
+
+```
+
+Los dos grupos **NO** son homocedásticos.
+
+```{r}
+
+#Test de normalidad good-bad.
+shapiro.test(data_good$density)
+shapiro.test(sample(data_bad$density, 5000, replace=FALSE))
+
+```
+
+Los datos **NO** se distribuyen normalmente.
+
+```{r}
+
+#Test de homocedasticidad good-bad.
+fligner.test(density ~ class, data= data)
+
+```
+
+Los dos grupos **NO** son homocedásticos.
+
+### pH.
+
+```{r}
+
+#Test de normalidad red-white.
+shapiro.test(data_red$pH)
+shapiro.test(data_white$pH)
+
+```
+
+Los datos **NO** se distribuyen normalmente.
+
+```{r}
+
+#Test de homocedasticidad red-white.
+fligner.test(pH ~ style, data = data)
+
+```
+
+Los dos grupos **SI** son homocedásticos.
+
+```{r}
+
+#Test de normalidad good-bad.
+shapiro.test(data_good$pH)
+shapiro.test(sample(data_bad$pH, 5000, replace=FALSE))
+
+```
+
+Los datos **NO** se distribuyen normalmente.
+
+```{r}
+
+#Test de homocedasticidad good-bad.
+fligner.test(pH ~ class, data= data)
+
+```
+
+Los dos grupos **SI** son homocedásticos.
+
+
+### sulphates.
+
+```{r}
+
+#Test de normalidad red-white.
+shapiro.test(data_red$sulphates)
+shapiro.test(data_white$sulphates)
+
+```
+
+Los datos **NO** se distribuyen normalmente.
+
+```{r}
+
+#Test de homocedasticidad red-white.
+fligner.test(sulphates ~ style, data = data)
+
+```
+
+Los dos grupos **NO** son homocedásticos.
+
+```{r}
+
+#Test de normalidad good-bad.
+shapiro.test(data_good$sulphates)
+shapiro.test(sample(data_bad$sulphates, 5000, replace=FALSE))
+
+```
+
+Los datos **NO** se distribuyen normalmente.
+
+```{r}
+
+#Test de homocedasticidad good-bad.
+fligner.test(sulphates ~ class, data= data)
+
+```
+
+Los dos grupos **NO** son homocedásticos.
+
+### alcohol.
+
+```{r}
+
+#Test de normalidad red-white.
+shapiro.test(data_red$alcohol)
+shapiro.test(data_white$alcohol)
+
+```
+
+Los datos **NO** se distribuyen normalmente.
+
+```{r}
+
+#Test de homocedasticidad red-white.
+fligner.test(alcohol ~ style, data = data)
+
+```
+
+Los dos grupos **NO** son homocedásticos.
+
+```{r}
+
+#Test de normalidad good-bad.
+shapiro.test(data_good$alcohol)
+shapiro.test(sample(data_bad$alcohol, 5000, replace=FALSE))
+
+```
+
+Los datos **NO** se distribuyen normalmente.
+
+```{r}
+
+#Test de homocedasticidad good-bad.
+fligner.test(alcohol ~ class, data= data)
+
+```
+
+Los dos grupos **NO** son homocedásticos.
+
+### quality.
+
+```{r}
+
+#Test de normalidad red-white.
+shapiro.test(data_red$quality)
+shapiro.test(data_white$quality)
+
+```
+
+Los datos **NO** se distribuyen normalmente.
+
+```{r}
+
+#Test de homocedasticidad red-white.
+fligner.test(quality ~ style, data = data)
+
+```
+
+Los dos grupos **SI** son homocedásticos.
+
+```{r}
+
+#Test de normalidad good-bad.
+shapiro.test(data_good$quality)
+shapiro.test(sample(data_bad$quality, 5000, replace=FALSE))
+
+```
+
+Los datos **NO** se distribuyen normalmente.
+
+```{r}
+
+#Test de homocedasticidad good-bad.
+fligner.test(quality ~ class, data= data)
+
+```
+
+Los dos grupos **NO** son homocedásticos.
+
+### Resumen.
+
+|Variable|Normalidad Red|Normalidad White|Homocedasticidad style|Homodedaticidad class|
+|:----------------------|:-----------:|:-----------:|:-----------:|:-----------:|
+|fixed_acidity|NO|NO|NO|SI|
+|volatile_acidity|NO|NO|NO|NO|
+|citric_acid|NO|NO|NO|NO|
+|residual_sugar|NO|NO|NO|NO|
+|chlorides|NO|NO|NO|NO|
+|free_SO2|NO|NO|NO|NO|
+|total_SO2|NO|NO|NO|NO|
+|density|NO|NO|NO|NO|
+|pH|NO|NO|SI|SI|
+|sulphates|NO|NO|NO|NO|
+|alcohol|NO|NO|NO|NO|
+|quality|NO|NO|SI|NO|
+
+## Pruebas estadísticas de comparación de variables.
+
+Dado que en ninguna de las variables (tanto en red-white como en good-bad) tenemos normalidad y en la mayoría tampoco tenemos homocedasticidad, emplearemos el test no paramétrico de Wilcoxon o el de Mann-Whitney que se aplican indistintamente mediante la función wilcos.test().
+
+### fixed_acidity.
+
+```{r}
+
+#Comparación red-white.
+wilcox.test(fixed_acidity ~ style, data = data)
+
+```
+
+Las diferencias entre los dos grupos al respecto de esta variable **SI** son estadísticamente significativas.
+
+```{r}
+
+#Comparación good-bad red wines.
+wilcox.test(fixed_acidity ~ class, data = data_red1)
+
+```
+
+Las diferencias entre los dos grupos al respecto de esta variable **SI** son estadísticamente significativas.
+
+```{r}
+
+#Comparación good-bad white wines.
+wilcox.test(fixed_acidity ~ class, data = data_white1)
+
+```
+
+Las diferencias entre los dos grupos al respecto de esta variable **SI** son estadísticamente significativas.
+
+### volatile_acidity.
+
+```{r}
+
+#Comparación red-white
+wilcox.test(volatile_acidity ~ style, data = data)
+
+```
+
+Las diferencias entre los dos grupos al respecto de esta variable **SI** son estadísticamente significativas.
+
+```{r}
+
+#Comparación good-bad red wines.
+wilcox.test(volatile_acidity ~ class, data = data_red1)
+
+```
+
+Las diferencias entre los dos grupos al respecto de esta variable **SI** son estadísticamente significativas.
+
+```{r}
+
+#Comparación good-bad white wines.
+wilcox.test(volatile_acidity ~ class, data = data_white1)
+
+```
+
+Las diferencias entre los dos grupos al respecto de esta variable **SI** son estadísticamente significativas.
+
+
+### citric_acid.
+
+```{r}
+
+#Comparación red-white
+wilcox.test(citric_acid ~ style, data = data)
+
+```
+
+Las diferencias entre los dos grupos al respecto de esta variable **SI** son estadísticamente significativas.
+
+```{r}
+
+#Comparación good-bad red wines.
+wilcox.test(citric_acid ~ class, data = data_red1)
+
+```
+
+Las diferencias entre los dos grupos al respecto de esta variable **SI** son estadísticamente significativas.
+
+```{r}
+
+#Comparación good-bad white wines.
+wilcox.test(citric_acid ~ class, data = data_white1)
+
+```
+
+Las diferencias entre los dos grupos al respecto de esta variable **NO** son estadísticamente significativas. Por tanto la concentración de ácido citrico de los dos tipos de vinos (good/bad) se puede considerar similar.
+
+
+### residual_sugar.
+
+```{r}
+
+#Comparación red-white
+wilcox.test(residual_sugar ~ style, data = data)
+
+```
+
+Las diferencias entre los dos grupos al respecto de esta variable **SI** son estadísticamente significativas.
+
+```{r}
+
+#Comparación good-bad red wines.
+wilcox.test(residual_sugar ~ class, data = data_red1)
+
+```
+
+Las diferencias entre los dos grupos al respecto de esta variable **SI** son estadísticamente significativas.
+
+```{r}
+
+#Comparación good-bad white wines.
+wilcox.test(residual_sugar ~ class, data = data_white1)
+
+```
+
+Las diferencias entre los dos grupos al respecto de esta variable **SI** son estadísticamente significativas.
+
+### chlorides.
+
+```{r}
+
+#Comparación red-white
+wilcox.test(chlorides ~ style, data = data)
+
+```
+
+Las diferencias entre los dos grupos al respecto de esta variable **SI** son estadísticamente significativas.
+
+```{r}
+
+#Comparación good-bad red wines.
+wilcox.test(chlorides ~ class, data = data_red1)
+
+```
+
+Las diferencias entre los dos grupos al respecto de esta variable **SI** son estadísticamente significativas.
+
+```{r}
+
+#Comparación good-bad white wines.
+wilcox.test(chlorides ~ class, data = data_white1)
+
+```
+
+Las diferencias entre los dos grupos al respecto de esta variable **SI** son estadísticamente significativas.
+
+### free_sulfur_dioxide.
+
+```{r}
+
+#Comparación red-white.
+wilcox.test(free_sulfur_dioxide ~ style, data = data)
+
+```
+
+Las diferencias entre los dos grupos al respecto de esta variable **SI** son estadísticamente significativas.
+
+```{r}
+
+#Comparación good-bad red wines.
+wilcox.test(free_sulfur_dioxide ~ class, data = data_red1)
+
+```
+
+Las diferencias entre los dos grupos al respecto de esta variable **SI** son estadísticamente significativas.
+
+```{r}
+
+#Comparación good-bad white wines.
+wilcox.test(free_sulfur_dioxide ~ class, data = data_white1)
+
+```
+
+Las diferencias entre los dos grupos al respecto de esta variable **NO** son estadísticamente significativas. Por tanto la concentración libre de SO2 de los dos tipos de vinos (good/bad) se puede considerar similar.
+
+### total_sulfur_dioxide.
+
+```{r}
+
+#Comparación red-white
+wilcox.test(total_sulfur_dioxide ~ style, data = data)
+
+```
+
+Las diferencias entre los dos grupos al respecto de esta variable **SI** son estadísticamente significativas.
+
+```{r}
+
+#Comparación good-bad red wines.
+wilcox.test(total_sulfur_dioxide ~ class, data = data_red1)
+
+```
+
+Las diferencias entre los dos grupos al respecto de esta variable **SI** son estadísticamente significativas.
+
+```{r}
+
+#Comparación good-bad white wines.
+wilcox.test(total_sulfur_dioxide ~ class, data = data_white1)
+
+```
+
+Las diferencias entre los dos grupos al respecto de esta variable **SI** son estadísticamente significativas.
+
+### density.
+
+```{r}
+
+#Comparación red-white
+wilcox.test(density ~ style, data = data)
+
+```
+
+Las diferencias entre los dos grupos al respecto de esta variable **SI** son estadísticamente significativas.
+
+```{r}
+
+#Comparación good-bad red wines.
+wilcox.test(density ~ class, data = data_red1)
+
+```
+
+Las diferencias entre los dos grupos al respecto de esta variable **SI** son estadísticamente significativas.
+
+```{r}
+
+#Comparación good-bad white wines.
+wilcox.test(density ~ class, data = data_white1)
+
+```
+
+Las diferencias entre los dos grupos al respecto de esta variable **SI** son estadísticamente significativas.
+
+### pH.
+
+```{r}
+
+#Comparación red-white
+wilcox.test(pH ~ style, data = data)
+
+```
+
+Las diferencias entre los dos grupos al respecto de esta variable **SI** son estadísticamente significativas.
+
+```{r}
+
+#Comparación good-bad red wines.
+wilcox.test(pH ~ class, data = data_red1)
+
+```
+
+Las diferencias entre los dos grupos al respecto de esta variable **SI** son estadísticamente significativas.
+
+
+```{r}
+
+#Comparación good-bad white wines.
+wilcox.test(pH ~ class, data = data_white1)
+
+```
+
+Las diferencias entre los dos grupos al respecto de esta variable **SI** son estadísticamente significativas.
+
+### sulphates.
+
+```{r}
+
+#Comparación red-white
+wilcox.test(sulphates ~ style, data = data)
+
+```
+
+Las diferencias entre los dos grupos al respecto de esta variable **SI** son estadísticamente significativas.
+
+```{r}
+
+#Comparación good-bad red wines.
+wilcox.test(sulphates ~ class, data = data_red1)
+
+```
+
+Las diferencias entre los dos grupos al respecto de esta variable **SI** son estadísticamente significativas.
+
+```{r}
+
+#Comparación good-bad white wines.
+wilcox.test(sulphates ~ class, data = data_white1)
+
+```
+
+Las diferencias entre los dos grupos al respecto de esta variable **NO** son estadísticamente significativas. Por tanto la concentración de sulfatos en los dos tipos de vinos (good/bad) se puede considerar similar.
+
+### alcohol.
+
+```{r}
+
+#Comparación red-white
+wilcox.test(alcohol ~ style, data = data)
+
+```
+
+Las diferencias entre los dos grupos al respecto de esta variable **NO** son estadísticamente significativas. Por tanto la graduación alcohólica de los dos tipos de vinos se puede considerar similar.
+
+```{r}
+
+#Comparación good-bad red wines.
+wilcox.test(alcohol ~ class, data = data_red1)
+
+```
+
+Las diferencias entre los dos grupos al respecto de esta variable **SI** son estadísticamente significativas.
+
+```{r}
+
+#Comparación good-bad white wines.
+wilcox.test(alcohol ~ class, data = data_white1)
+
+```
+
+Las diferencias entre los dos grupos al respecto de esta variable **SI** son estadísticamente significativas.
+
+### quality.
+
+```{r}
+
+#Comparación red-white
+wilcox.test(quality ~ style, data = data)
+
+```
+
+Las diferencias entre los dos grupos al respecto de esta variable **SI** son estadísticamente significativas.
+
+### Resumen.
+
+|Variable|Diferencias significativas entre tintos y blancos (style Red-White)|Diferencias significativas vinos tintos entre buenos y malos (class Good-Bad)|Diferencias significativas vinos blancos entre buenos y malos (class Good-Bad)
+|:----------------------|:---------------------:|:---------------------:|:---------------------:|
+|fixed_acidity|SI|SI|SI|
+|volatile_acidity|SI|SI|SI|
+|citric_acid|SI|SI|NO|
+|residual_sugar|SI|SI|SI|
+|chlorides|SI|SI|SI|
+|free_SO2|SI|SI|NO|
+|total_SO2|SI|SI|SI|
+|density|SI|SI|SI|
+|pH|SI|SI|SI|
+|sulphates|SI|SI|NO|
+|alcohol|NO|SI|SI|
+|quality|SI|
+
+## Correlación entre variables.
+
+Dado que las distribuciones de las variables no son normales empleamos la correlación de Spearman:
+
+```{r}
+
+#Vinos tintos.
+cor(data_red[,-c(13,14)], method= "spearman")
+#Vinos blancos.
+cor(data_white[,-c(13,14)], method= "spearman")
+
+```
+
+LA columna más interesante es la de la correlación entre la calidad del vino y el resto de variables, donde podemos ver que los valores de correlación son moderados y que se corresponden con las suposiciones que habíamos realizado en los boxplots del análisis descriptivo del apardato 4.1.
+
+## Modelos de regresión lineal.
+
+En base a los resultados obtenidos en las comparaciones anteriores poremos ver que las diferencias entre los vinos tintos y blancos son importantes, lo cual ya era esperable al ver la elevada cantidad de outliers observados al tratar todos los datos en conjunto.
+
+Por tanto, la mejor estrategia será crear un modelo de regresión para los vinos blancos y otro distinto para los vinos tintos.
+
+En estos modelos de regresión se estimará como variable dependiente el valor de la calidad del vino "quality", como una combinación lineal del resto de variables.
+
+```{r}
+
+#Vinos blancos.
+m_white = lm(quality ~ fixed_acidity + volatile_acidity + citric_acid + residual_sugar + chlorides + free_sulfur_dioxide + total_sulfur_dioxide + density + pH + sulphates + alcohol, data=data_white)
+
+summary(m_white)
+
+#Vinos tintos.
+m_red = lm(quality ~ fixed_acidity + volatile_acidity + citric_acid + residual_sugar + chlorides + free_sulfur_dioxide + total_sulfur_dioxide + density + pH + sulphates + alcohol, data=data_red)
+
+summary(m_red)
+
+```
+
+Como podemos ver R^2 no es muy elevado en ninguno de los tipos de vino, el modelo por tanto no es demasiado bueno. A pesar de ello, el p-valor de la regresión es << 0.05, lo cual nos indica que estadísticamente podemos asegurar que existe algún tipo de relación lineal entre la calidad del vino y el resto de parámetros.
+
+## Modelos de regresión logística propuestos.
+
+Dado que hemos añadido la variable dicotómica class al dataset, podemos llevar a cabo una regresión logística y emplear este modelo a modo de clasificador.
+
+```{r}
+
+#Vinos blancos.
+m_log_white = glm(class ~ fixed_acidity + volatile_acidity + citric_acid + residual_sugar + chlorides + free_sulfur_dioxide + total_sulfur_dioxide + density + pH + sulphates + alcohol, data=data[which(data$style=="white"),], family="binomial")
+
+summary(m_log_white)
+
+#Vinos tintos.
+m_log_red = glm(class ~ fixed_acidity + volatile_acidity + citric_acid + residual_sugar + chlorides + free_sulfur_dioxide + total_sulfur_dioxide + density + pH + sulphates + alcohol, data=data[which(data$style=="red"),], family="binomial")
+
+summary(m_log_red)
+
+```
+
+Como podemos ver para el modelo white el valor de AIC es enorme, unos 4000, para el modelo red es algo menor sobre los 900.
+
+Vamos a calcular la exactitud del modelo clasificador:
+
+```{r}
+
+#Cálculo exactitud vinos tintos. 
+predict_red<- predict.glm(m_log_red, data[which(data$style=="red"),-c(12,13)], type="response")
+predict_red[predict_red >= 0.5]<-"good"
+predict_red[predict_red < 0.5]<-"bad"
+
+table(data$class[which(data$style=="red")],predict_red)
+
+```
+
+La exactitud es de un 88% para los vinos tintos, no es un mal resultado. Donde más falla el modelo es en la clasificación de los buenos vinos (quality >= 7) ya que solamente acierta en un 34%.
+
+```{r}
+
+#Cálculo exactitud vinos blancos. 
+predict_white<- predict.glm(m_log_white, data[which(data$style=="white"),-c(12,13)], type="response")
+predict_white[predict_white >= 0.5]<-"good"
+predict_white[predict_white < 0.5]<-"bad"
+
+table(data$class[which(data$style=="white")],predict_white)
+
+```
+
+La exactitud es de un 80% para los vinos blancos, tampoco es un mal resultado. Donde más falla el modelo es en la clasificación de los buenos vinos ya que solamente acierta en un 28%.
+
+## Modelos supervisados propuestos (Random Forest).
+
+Generaremos dos modelos de clasificación supervisados de tipo random forest, para vinos blancos y tintos.
+
+Dividiremos el dataset en un train y test sets en una proporción de 2/3, 1/3. Para generar el modelo con el train set, realizaremos una validación cruzada de 4 folds.
+
+```{r}
+library(caret)
+library(rminer)
+
+#Separamos del dataframe data (contiene class y style), por tipo de vinos, eliminamos el parámetro quality para que no interfiera en la clasificación.
+datar<-data[which(data$style=="red"), c(-12,-13)]
+dataw<-data[which(data$style=="white"), c(-12,-13)]
+
+#Clasificación random forest vinos tintos.
+h <- holdout(datar$class,ratio=2/3, mode="stratified")
+data_train <- data[h$tr,]
+data_test <- data[h$ts,]
+#Para entrenar el modelo realizamos una validación cruzada de 4 folds.
+train_control<- trainControl(method="cv", number=4)
+mod<-train(class~., data=data_train, method="rf", trControl = train_control)
+pred <- predict(mod, newdata=data_test)
+
+confusionMatrix(pred,data_test$class,positive="good") 
+
+#Clasificación random forest vinos blancos.
+h1 <- holdout(dataw$class,ratio=2/3, mode="stratified")
+data_train1 <- data[h1$tr,]
+data_test1 <- data[h1$ts,]
+#Para entrenar el modelo realizamos una validación cruzada de 4 folds.
+train_control1<- trainControl(method="cv", number=4)
+mod1<-train(class~., data=data_train1, method="rf", trControl = train_control1)
+pred1 <- predict(mod1, newdata=data_test1)
+
+confusionMatrix(pred1,data_test1$class,positive="good")
+
+```
+
+Los resultados de la clasificación son demasiado buenos, en ambos casos clasifica perfectamente ambos tipos de vinos. Claramente he cometido algún error en el modelo, ya que modelos que clasifiquen con un 100% de exactitud son muy improbables, he revisado el procedimiento en repatidas ocasiones pero no he sido capaz de detectar el fallo.
+
+# Representación de los resultados.
+
+Procedemos a representar los resultados obtenidos en los análisis.
+
+##Boxplots de los atributos de los vinos blancos y tintos.
+
+También forman parte de esta representación los boxplots generados en el apartado 4.1 donde se han generado comparativos entre buenos y malos para cada atributo y cada tipo de vino (tinto o blanco), no los vuelvo a insertar para no alargar en exceso el apartado.
+
+```{r ,echo=FALSE}
+
+boxplot(data_red[,-13], main="VINOS TINTOS", col=terrain.colors(4), las=2)
+boxplot(data_white[,-13], main="VINOS BLANCOS", col=terrain.colors(4), las=2)
+
+```
+
+
+## Correlaciones.
+
+Correlación entre variables vinos tintos y blancos, donde podemos ver que las variables no están muy correlacionadas entre si.
+
+```{r}
+
+library(corrplot)
+#VINOS TINTOS.
+corr.res<-cor(data_red[,-c(13,14)]) 
+corrplot(corr.res,method="circle")
+#VINOS BLANCOS.
+corr.res1<-cor(data_white[,-c(13,14)]) 
+corrplot(corr.res1,method="circle")
+
+```
+
+##Tabla resumen tests estadísticos.
+
+Tabla resumen con los resultados estadísticos, donde podemos ver que estadísticamente entre los atributos de tintos y blancos y vinos buenos y malos, existen diferencias significativas entre la mayoría de ellos, aunque ya hemos apuntado que la cantidad elevada de outliers reduce bastante la potencia estadística de los resultados.
+
+|Variable|Diferencias significativas entre tintos y blancos (style Red-White)|Diferencias significativas vinos tintos entre buenos y malos (class Good-Bad)|Diferencias significativas vinos blancos entre buenos y malos (class Good-Bad)
+|:----------------------|:---------------------:|:---------------------:|:---------------------:|
+|fixed_acidity|SI|SI|SI|
+|volatile_acidity|SI|SI|SI|
+|citric_acid|SI|SI|NO|
+|residual_sugar|SI|SI|SI|
+|chlorides|SI|SI|SI|
+|free_SO2|SI|SI|NO|
+|total_SO2|SI|SI|SI|
+|density|SI|SI|SI|
+|pH|SI|SI|SI|
+|sulphates|SI|SI|NO|
+|alcohol|NO|SI|SI|
+|quality|SI|
+
+
+##Proyecciones PCA:
+
+En este primer gráfico representamos los dos primeros PC (PC1 y PC2), los cuales acumulan un total del 50% del la varianza de los datos, y a pesar de que este % de varianza no es mucho, ya podemos ver como los vinos blancos se separan claramente de los tintos.
+
+```{r, echo=FALSE}
+
+library(ggfortify)
+library(cluster)
+
+autoplot(data.pca, data=data, colour="style")
+
+```
+
+En esta segundo gráfico, representamos la proyección de las dos primeras componentes principales PC1 y PC2, pero esta vez del dataset de vinos tintos, para ver si los vinos de buena calidad se separan de los de mala calidad. Como podemos ver, con un 55% de la varianza de los datos acumulada, parece que los vinos de buena calidad se desplazan a una región del gráfico, aunque no se separan con claridad de los vinos de mala calidad.
+
+```{r, echo=FALSE}
+
+#Eliminamos el atributo quality.
+autoplot(prcomp(data_red1[,-c(12,13,14)]), data=data_red1, colour="class")
+
+```
+
+Con los vinos blancos sucede algo parecido, aunque parece que se separan mejor (ambas PC acumulan aprox. un 47% de la varianza de los datos).
+
+```{r, echo=FALSE}
+
+#Eliminamos el atributo quality.
+autoplot(prcomp(data_white1[,-c(12,13,14)]), data=data_white1, colour="class")
+
+```
+
+##Tablas resumen modelos de análisis.
+
+De los análisis realizados, los resultados son los siguientes:
+
+**MODELO REGRESIÓN LINEAL**
+
+Modelo lineal que correlaciona el nivel de calidad con el resto de atributos del vino:
+
+|VARIEDAD|$R^2$|p-value|Atributos con mayor incidencia(coeficiente)|Atributos sin incidencia estadística en el modelo Pr(>/t/)>0.05|
+|:--------------|:----:|:-----------|:--------------------------|:--------------------------|
+|BLANCOS|0.28|<2.2e-16 Estadísticamente se puede afirmar qu existe una correlación lineal|volatile_acidity(-0.19), residual_sugar(0.42), density(-0.44), pH(0.10), alcohol(0.23)|citric_acid(0.81), chlorides(0.65), total_SO2(0.45)|
+|TINTOS|0.36|<2.2e-16 Estadísticamente se puede afirmar qu existe una correlación lineal|volatile_acidity(-0.19), total_SO2(-0.11), sulphates(0.16) alcohol(0.29)|fixed_acidity(0.33), citric_acid(0.22),residual_sugar(0.28), density(0.41)|
+
+**MODELOS CLASIFICADORES**
+
+Si tomamos como clase de interes los vinos de buena calidad (calidad >=7).
+
+**VINOS TINTOS**
+
+|MODELO|Exactitud|Sensibilidad|Especificidad|
+|:----------------|:----------:|:----------:|:----------:|
+|Regresión logística|88%|28%|97%|
+|Random Forest|100%|100%|100%|
+
+**VINOS BLANCOS**
+
+|MODELO|Exactitud|Sensibilidad|Especificidad|
+|:----------------|:----------:|:----------:|:----------:|
+|Regresión logística|88%|35%|95%|
+|Random Forest|100%|100%|100%|
+
+Los valores de calidad del modelo de random forest son demasiado elevados, casi con toda seguridad he cometido algún error en el modelado de los datos mediante rf.
+
+##Conclusiones, resolución a las preguntas planteadas.
+
+Una vez evaluados resultados de los análisis realizados, pasamos a contestar a las preguntas planteadas inicialmente:
+
+- ** ¿Tiene sentido trabajar con todos los vinos en conjunto o es mejor trabajar con ellos de forma separada (blancos respecto a tintos)?,¿son significativamente distintos los vinos blancos de los tintos?**
+
+Tal como hemos podido comprobar ambos tipos de vinos son distintos de forma significativa estadísticamente, por lo que es mejor trabajar con los dos datasets (blancos y tintos) por separado. 
+
+- ** ¿Existe algún parámetro químico físico que sea especialmente relevante para diferenciar vinos de buena calidad?**
+
+En los modelos de regresión podemos ver que existe estadísticamente una clara correlación lineal (p-valor<2.2e-16), aunque el valor de $R^2$ es bastante bajo. En estos modelos lineales, así como en las matrices de correlación, aparecen algunos atributos que parecen tener una mayor incidencia en el modelo lineal, como son el alcohol, volatile_acidity y alguno más (ver apartado 5.5) aunque sus coeficientes tampoco tienen un peso muy elevado.
+
+- ** ¿Es posible predecir, por ejemplo mediante regresión lineal, u otros tipos de análisis, en base a los datos químico físicos disponibles de un vino, determinar la calidad resultante del mismo antes de que lo valore un panel de expertos?, ¿Cual sería el mejor de estos métodos de análisis?**
+
+Es posible hacer predicciones de calidad con el modelo lineal, y por ejemplo con el modelo de regresión logística o con el modelo supervisado random forest (como ya he comentado los resultados con este modelo son bastante dudosos y seguramente son erróneos).
+
+A pesar de ello, se puede observar (tanto en los modelos de regresión lineal como logística), que su sensibilidad es bastante baja, o sea que los vinos de calidad regular son clasificados de manera correcta, pero en los vinos de buena calidad los modelos cometen muchos errores y en un % elevado terminan clasificando buenos vinos como vinos mediocres. Por tanto a pesar de tener una buena exactitud, el defecto de estos modelos es su baja sensibilidad.
+
+
+**Conclusiones adicionales, posibles mejoras.**
+
+En base a estas conclusiones, se podrían proponer posibles mejoras al dataset con el objeto de elevar los parámetros de calidad de los diferentes modelos, por ejemplo algunas de ellas podrían ser:
+
+* Incrementar el número de vinos de buena calidad (quality >=7) en el dataset, su número es muy reducido y esto puede ser una de las causas de la baja sensibilidad detectada en los modelos.
+* La cantidad de outliers existentes en los diferentes atributos del dataset es elevada, lo cual reduce la potencia estadística de los resultados. Ya he apuntado que una de las posibles causas es que la producción de un vino es un proceso semiartesanal muy dependiente de las condiciones climatológicas de un año determinado y también de la región donde este vino se produce (características del suelo y del microclima de la región), por lo que podría ser una buena idea añadir al dataset original, datos de localización geográfica de cada uno de los vinos, y de las condiciones climatológicas del año en que se relizó la cosecha.
